@@ -13,14 +13,38 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     geometry_msgs::msg::Twist cmd_vel_msg_;
 
-    void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
+void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg)
 {
     cmd_vel_msg_ = geometry_msgs::msg::Twist();
 
+    double multiplicador_linear = 1.0;
+    double multiplicador_angular = 0.8;
+
+    if (msg->buttons[4]) 
+    {
+        multiplicador_linear = 2.0;  
+        multiplicador_angular = 1.6; 
+    }
+
+    double linear = msg->axes[1] * multiplicador_linear;
+    double angular = msg->axes[3] * multiplicador_angular;
+
+    double max_linear = 2.0; 
+    double max_angular = 1.6; 
+
+    if (std::abs(linear) > max_linear)
+    {
+        linear = (linear > 0) ? max_linear : -max_linear;
+    }
+    if (std::abs(angular) > max_angular)
+    {
+        angular = (angular > 0) ? max_angular : -max_angular;
+    }
+
     if (!msg->buttons[1]) 
     {
-        cmd_vel_msg_.linear.x = 10.0 * msg->axes[1];
-        cmd_vel_msg_.angular.z = 10.0 * msg->axes[3];
+        cmd_vel_msg_.linear.x = linear;
+        cmd_vel_msg_.angular.z = angular;
     }
     else
     {
@@ -28,8 +52,10 @@ private:
         cmd_vel_msg_.angular.z = 0;
     }
 
+    RCLCPP_INFO(this->get_logger(), "Linear: %f, Angular: %f", cmd_vel_msg_.linear.x, cmd_vel_msg_.angular.z);
     cmd_vel_pub_->publish(cmd_vel_msg_);
 }
+
 
 public:
     CargobotTeleop() : Node("cargobot_teleop")
